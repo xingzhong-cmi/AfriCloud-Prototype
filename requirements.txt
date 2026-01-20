@@ -10,3 +10,4 @@ openpyxl
 python-pptx
 paddleocr
 paddlepaddle
+opencv-python-headless
