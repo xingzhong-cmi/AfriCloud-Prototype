@@ -1,6 +1,8 @@
 import os
 os.environ.setdefault("PDX_EAGER_INITIALIZATION", "0")
 
+import importlib
+
 import streamlit as st
 import requests
 import json
@@ -417,3 +419,4 @@ st.markdown("---")
 st.write(
 
     "支持格式: TXT, CSV, PDF, Word, Excel, PPT, 图片(PDF, JPG, PNG等) | 使用 Deepseek API 和 PaddleOCR 提供技术支持")
+
