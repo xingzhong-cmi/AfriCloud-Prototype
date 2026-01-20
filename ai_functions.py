@@ -1,8 +1,8 @@
 import os
-os.environ.setdefault("PDX_EAGER_INITIALIZATION", "0")  # 关闭 PaddleX 急切初始化，必须在导入 paddleocr 之前设置
+# 强制关闭 PaddleX 急切初始化：必须在导入 paddleocr/paddlex 之前
+os.environ["PDX_EAGER_INITIALIZATION"] = "0"
 
 import importlib
-
 import streamlit as st
 import requests
 import json
@@ -17,10 +17,10 @@ from PyPDF2 import PdfReader  # 处理PDF
 from openpyxl import load_workbook  # 处理Excel
 from pptx import Presentation  # 处理PPT
 
-# 注意：不在模块顶层导入或实例化 PaddleOCR，改为延迟导入与单例复用
+# 不在顶层导入或实例化 PaddleOCR；改为延迟导入并单例复用
 def get_ocr():
     """
-    延迟导入并创建 PaddleOCR 实例，放入 session_state 复用，避免 Streamlit 重跑导致的重复初始化。
+    延迟导入并创建 PaddleOCR 实例，放入 session_state 复用，避免重复初始化。
     如需纯离线，可在此传入 det_model_dir/rec_model_dir/cls_model_dir 指向本地模型目录。
     """
     if 'ocr' not in st.session_state:
@@ -330,7 +330,7 @@ if st.session_state.uploaded_files:
                             st.success("摘要生成成功!")
                             st.rerun()
 
-            # 功能3: AI生���简化报告和可视化
+            # 功能3: AI生成简化报告和可视化
             if st.button("📊 生成报告与可视化", key="btn_report"):
                 with st.spinner("正在生成报告和可视化..."):
                     # 获取文件内容
