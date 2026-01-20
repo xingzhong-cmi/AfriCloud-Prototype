@@ -1,12 +1,11 @@
 import os
-os.environ.setdefault("PDX_EAGER_INITIALIZATION", "0")
+os.environ.setdefault("PDX_EAGER_INITIALIZATION", "0")  # 关闭 PaddleX 急切初始化，必须在导入 paddleocr 之前设置
 
 import importlib
 
 import streamlit as st
 import requests
 import json
-import os
 import tempfile
 from PIL import Image
 import pandas as pd
@@ -17,10 +16,18 @@ from docx import Document  # 处理Word
 from PyPDF2 import PdfReader  # 处理PDF
 from openpyxl import load_workbook  # 处理Excel
 from pptx import Presentation  # 处理PPT
-from paddleocr import PaddleOCR  # 替换pytesseract为PaddleOCR
 
-# 初始化PaddleOCR（支持中英文）
-ocr = PaddleOCR(use_angle_cls=True, lang="ch")
+# 注意：不在模块顶层导入或实例化 PaddleOCR，改为延迟导入与单例复用
+def get_ocr():
+    """
+    延迟导入并创建 PaddleOCR 实例，放入 session_state 复用，避免 Streamlit 重跑导致的重复初始化。
+    如需纯离线，可在此传入 det_model_dir/rec_model_dir/cls_model_dir 指向本地模型目录。
+    """
+    if 'ocr' not in st.session_state:
+        paddleocr = importlib.import_module('paddleocr')
+        st.session_state.ocr = paddleocr.PaddleOCR(use_angle_cls=True, lang="ch")
+    return st.session_state.ocr
+
 
 # 设置页面配置
 st.set_page_config(page_title="AI文件处理助手", layout="wide")
@@ -69,19 +76,20 @@ def call_deepseek_api(prompt, system_message=None):
 
 
 def paddle_ocr_processing(image_path):
-    """使用PaddleOCR进行文本提取"""
+    """使用PaddleOCR进行文本提取（延迟导入，单例复用）"""
     try:
-        # 调用PaddleOCR进行识别（移除cls=True参数）
-        result = ocr.ocr(image_path)  # 这里删除了cls=True
-        # 提取文本内容
+        ocr = get_ocr()
+        result = ocr.ocr(image_path)
+        # 提取文本内容（兼容不同版本返回格式）
         text = ""
-        # 兼容不同版本的PaddleOCR返回格式
         if result is not None:
             for line in result:
                 if line is not None:  # 处理可能的空行
                     for word_info in line:
-                        if len(word_info) >= 2 and isinstance(word_info[1], tuple):
-                            text += word_info[1][0] + "\n"
+                        if isinstance(word_info, (list, tuple)) and len(word_info) >= 2:
+                            content = word_info[1]
+                            if isinstance(content, (list, tuple)) and len(content) >= 1:
+                                text += str(content[0]) + "\n"
         return text
     except Exception as e:
         st.error(f"PaddleOCR处理错误: {str(e)}")
@@ -180,9 +188,9 @@ def extract_text_from_file(file_info):
             st.warning(f"不支持的文件格式: {file_ext}，尝试使用OCR提取文本...")
             try:
                 # 尝试以图像方式打开
-                img = Image.open(file_path)
+                Image.open(file_path)
                 extracted_text = paddle_ocr_processing(file_path)
-            except:
+            except Exception:
                 extracted_text = f"无法提取文本 (文件格式: {file_ext})"
 
     except Exception as e:
@@ -322,7 +330,7 @@ if st.session_state.uploaded_files:
                             st.success("摘要生成成功!")
                             st.rerun()
 
-            # 功能3: AI生成简化报告和可视化
+            # 功能3: AI生���简化报告和可视化
             if st.button("📊 生成报告与可视化", key="btn_report"):
                 with st.spinner("正在生成报告和可视化..."):
                     # 获取文件内容
@@ -356,7 +364,7 @@ if st.session_state.uploaded_files:
                             try:
                                 vis_json = json.loads(vis_data)
                                 st.session_state.uploaded_files[selected_file]["visualization"] = vis_json
-                            except:
+                            except Exception:
                                 st.warning("无法解析可视化数据，可能格式不正确")
 
                         st.success("报告和可视化生成成功!")
@@ -417,6 +425,4 @@ else:
 # 页脚信息
 st.markdown("---")
 st.write(
-
     "支持格式: TXT, CSV, PDF, Word, Excel, PPT, 图片(PDF, JPG, PNG等) | 使用 Deepseek API 和 PaddleOCR 提供技术支持")
-
