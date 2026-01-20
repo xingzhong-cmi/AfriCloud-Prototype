@@ -1,0 +1,12 @@
+streamlit
+requests
+pandas
+numpy
+matplotlib
+Pillow
+python-docx
+PyPDF2
+openpyxl
+python-pptx
+paddleocr
+paddlepaddle
